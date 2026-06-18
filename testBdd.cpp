@@ -10,6 +10,7 @@
 #include <vector>
 #include <ctime>
 #include <cstdlib>
+#include <fstream>
 #include "bddNode.h"
 #include "bddMgr.h"
 #include "bmdNode.h"
@@ -107,6 +108,8 @@ benchBmd(const string& circuit, unsigned bits)
       f = x;
    else if (circuit == "add")
       f = x + y;
+   else if (circuit == "subtract")
+      f = x - y;
    else
       f = x * y;
 
@@ -118,6 +121,7 @@ benchBmd(const string& circuit, unsigned bits)
    long long expect = 0;
    if (circuit == "encode") expect = xv;
    else if (circuit == "add") expect = xv + yv;
+   else if (circuit == "subtract") expect = (long long)xv - (long long)yv;
    else expect = xv * yv;
 
    string check = (bm.evalCube(f, pattern) == expect)? "pass": "fail";
@@ -175,6 +179,24 @@ benchBdd(const string& circuit, unsigned bits)
    return row;
 }
 
+static void
+writeCsv(const vector<BenchRow>& rows, const string& fileName)
+{
+   ofstream ofile(fileName.c_str());
+   if (!ofile) return;
+
+   ofile << "engine,circuit,bits,nodes,memory_est,seconds,check" << endl;
+   for (size_t i = 0; i < rows.size(); ++i) {
+      ofile << rows[i].engine << ','
+            << rows[i].circuit << ','
+            << rows[i].bits << ','
+            << rows[i].nodes << ','
+            << rows[i].memory << ','
+            << fixed << setprecision(6) << rows[i].seconds << ','
+            << rows[i].check << endl;
+   }
+}
+
 static bool
 exhaustiveBmd(unsigned bits)
 {
@@ -193,6 +215,33 @@ exhaustiveBmd(unsigned bits)
          if (bm.evalCube(sum, pattern) != (long long)(xv + yv))
             return false;
          if (bm.evalCube(product, pattern) != (long long)(xv * yv))
+            return false;
+      }
+   }
+   return true;
+}
+
+static bool
+exhaustiveBmdBoolean()
+{
+   BmdMgr bm(2, 20011, 80021);
+   BmdNode a = bm.getSupport(1);
+   BmdNode b = bm.getSupport(2);
+   BmdNode notA = ~a;
+   BmdNode andAB = a & b;
+   BmdNode orAB = a | b;
+   BmdNode xorAB = a ^ b;
+
+   for (unsigned av = 0; av <= 1; ++av) {
+      for (unsigned bv = 0; bv <= 1; ++bv) {
+         string pattern = makePattern(1, av, bv);
+         if (bm.evalCube(notA, pattern) != (long long)(!av))
+            return false;
+         if (bm.evalCube(andAB, pattern) != (long long)(av & bv))
+            return false;
+         if (bm.evalCube(orAB, pattern) != (long long)(av | bv))
+            return false;
+         if (bm.evalCube(xorAB, pattern) != (long long)(av ^ bv))
             return false;
       }
    }
@@ -221,9 +270,23 @@ printRow(const BenchRow& r)
         << "  " << r.check << endl;
 }
 
+static size_t
+findNodes(const vector<BenchRow>& rows, const string& engine,
+          const string& circuit, unsigned bits)
+{
+   for (size_t i = 0; i < rows.size(); ++i)
+      if (rows[i].engine == engine &&
+          rows[i].circuit == circuit &&
+          rows[i].bits == bits)
+         return rows[i].nodes;
+   return 0;
+}
+
 int
 main()
 {
+   vector<BenchRow> rows;
+
    cout << "BMDImpt benchmark on RicBDD infrastructure" << endl;
    cout << "Positive Davio arithmetic form: f = f0 + x * (f1 - f0)" << endl;
    cout << endl;
@@ -238,27 +301,54 @@ main()
 
    unsigned bmdBits[] = { 4, 8, 12, 16, 24, 32 };
    for (unsigned i = 0; i < sizeof(bmdBits) / sizeof(unsigned); ++i) {
-      printRow(benchBmd("encode", bmdBits[i]));
-      printRow(benchBmd("add", bmdBits[i]));
-      if (bmdBits[i] <= 16)
-         printRow(benchBmd("multiply", bmdBits[i]));
+      rows.push_back(benchBmd("encode", bmdBits[i]));
+      printRow(rows.back());
+      rows.push_back(benchBmd("add", bmdBits[i]));
+      printRow(rows.back());
+      rows.push_back(benchBmd("subtract", bmdBits[i]));
+      printRow(rows.back());
+      if (bmdBits[i] <= 16) {
+         rows.push_back(benchBmd("multiply", bmdBits[i]));
+         printRow(rows.back());
+      }
    }
 
    unsigned bddAddBits[] = { 4, 8, 12, 16 };
    for (unsigned i = 0; i < sizeof(bddAddBits) / sizeof(unsigned); ++i) {
-      printRow(benchBdd("equality", bddAddBits[i]));
-      printRow(benchBdd("add", bddAddBits[i]));
+      rows.push_back(benchBdd("equality", bddAddBits[i]));
+      printRow(rows.back());
+      rows.push_back(benchBdd("add", bddAddBits[i]));
+      printRow(rows.back());
    }
 
    unsigned bddMulBits[] = { 2, 4, 6, 8 };
-   for (unsigned i = 0; i < sizeof(bddMulBits) / sizeof(unsigned); ++i)
-      printRow(benchBdd("multiply", bddMulBits[i]));
+   for (unsigned i = 0; i < sizeof(bddMulBits) / sizeof(unsigned); ++i) {
+      rows.push_back(benchBdd("multiply", bddMulBits[i]));
+      printRow(rows.back());
+   }
 
    cout << endl;
    cout << "*BMD exhaustive 4-bit encode/add/multiply: "
         << (exhaustiveBmd(4)? "pass": "fail") << endl;
+   cout << "*BMD Boolean ops exhaustive NOT/AND/OR/XOR: "
+        << (exhaustiveBmdBoolean()? "pass": "fail") << endl;
    cout << "*BMD DOT example bmd_multiply_4.dot: "
         << (writeBmdDotExample()? "written": "failed") << endl;
+
+   writeCsv(rows, "benchmark_results.csv");
+   cout << "Benchmark CSV benchmark_results.csv: written" << endl;
+
+   size_t bmdMul8 = findNodes(rows, "*BMD", "multiply", 8);
+   size_t bddMul8 = findNodes(rows, "BDD", "multiply", 8);
+   if (bmdMul8 != 0 && bddMul8 != 0) {
+      cout << endl;
+      cout << "Comparison summary:" << endl;
+      cout << "  8-bit multiply BDD nodes  : " << bddMul8 << endl;
+      cout << "  8-bit multiply *BMD nodes : " << bmdMul8 << endl;
+      cout << "  BDD/*BMD node ratio       : "
+           << fixed << setprecision(2)
+           << (double(bddMul8) / double(bmdMul8)) << "x" << endl;
+   }
 
    return 0;
 }

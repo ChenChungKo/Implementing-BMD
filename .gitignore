@@ -13,6 +13,7 @@ core.*
 # Generated diagrams / reports from local runs
 *.dot
 *.png
+benchmark_results.csv
 
 # Editor and OS noise
 *~

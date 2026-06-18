@@ -53,6 +53,7 @@ The benchmark prints:
 - runtime
 - sample correctness check
 - a small `*BMD` DOT graph example: `bmd_multiply_4.dot`
+- a CSV result file: `benchmark_results.csv`
 
 The benchmark also runs an exhaustive `*BMD` correctness test for 4-bit
 word-level encoding, addition, and multiplication.  This checks all input
@@ -71,6 +72,13 @@ add(X, Y)    = X + Y
 multiply(X,Y)= X * Y
 ```
 
+The benchmark also exhaustively validates `*BMD` Boolean operations over all
+2-input combinations:
+
+```text
+NOT, AND, OR, XOR
+```
+
 ### Clean Generated Files
 
 ```sh
@@ -80,6 +88,7 @@ rm -f .depend.mak
 
 Generated object files, executable binaries, dependency files, crash dumps, and
 local diagram files are ignored by `.gitignore` and should not be pushed.
+The generated benchmark CSV file is also ignored.
 
 ### Optional DOT Visualization
 
@@ -106,6 +115,8 @@ package:
 - GCD-based edge-weight normalization for canonical `*BMD` construction.
 - Arithmetic operations: addition, subtraction, and multiplication.
 - Boolean operations represented arithmetically: NOT, AND, OR, and XOR.
+- Exhaustive correctness checks for small arithmetic and Boolean cases.
+- CSV benchmark result export for post-processing.
 - DOT graph output for visualizing small `*BMD` examples.
 - A benchmark driver comparing RicBDD's original BDD engine with the new
   `*BMD` engine using node count, estimated memory, and runtime.
@@ -348,6 +359,7 @@ The benchmark contains two categories:
 - `*BMD` word-level arithmetic benchmarks:
   - `encode`: unsigned integer word representation
   - `add`: word-level addition `X + Y`
+- `subtract`: word-level subtraction `X - Y`
   - `multiply`: word-level multiplication `X * Y`
 - RicBDD BDD bit-level benchmarks:
   - `equality`: Boolean comparator `X == Y`
@@ -368,6 +380,7 @@ Engine  Circuit       Bits       Nodes   Memory(est)     Seconds  Check
 *BMD    multiply         4          15           720    0.000009  pass
 *BMD    encode           8           9           432    0.000011  pass
 *BMD    add              8          17           816    0.000021  pass
+*BMD    subtract         8          17           816    0.000020  pass
 *BMD    multiply         8          31          1488    0.000035  pass
 *BMD    encode          12          13           624    0.000016  pass
 *BMD    add             12          25          1200    0.000058  pass
@@ -404,13 +417,26 @@ Additional correctness test:
 
 ```text
 *BMD exhaustive 4-bit encode/add/multiply: pass
+*BMD Boolean ops exhaustive NOT/AND/OR/XOR: pass
 *BMD DOT example bmd_multiply_4.dot: written
+Benchmark CSV benchmark_results.csv: written
+```
+
+Representative comparison summary:
+
+```text
+Comparison summary:
+  8-bit multiply BDD nodes  : 55996
+  8-bit multiply *BMD nodes : 31
+  BDD/*BMD node ratio       : 1806.32x
 ```
 
 Observations:
 
 - `*BMD` represents unsigned word encoding linearly.
 - `*BMD` addition also grows linearly in this benchmark.
+- `*BMD` subtraction behaves similarly to addition and demonstrates support for
+  integer-valued functions that may become negative.
 - `*BMD` multiplication remains compact when constructed at the word level.
 - RicBDD's BDD engine handles equality and addition well with interleaved
   variable ordering.
