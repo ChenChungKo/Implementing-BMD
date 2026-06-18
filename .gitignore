@@ -1,0 +1,20 @@
+# Build artifacts
+*.o
+*.out
+testBdd
+
+# Generated dependency files
+.depend.mak
+
+# Crash dumps
+core
+core.*
+
+# Generated diagrams / reports from local runs
+*.dot
+*.png
+
+# Editor and OS noise
+*~
+*.swp
+.DS_Store
