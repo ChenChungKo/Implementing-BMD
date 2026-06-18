@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
+#include <cctype>
 #include "bddNode.h"
 #include "bddMgr.h"
 #include "bmdNode.h"
@@ -38,13 +39,25 @@ struct Options
    unsigned bits;
    string   csvFile;
    string   dotFile;
+   string   verilogFile;
    bool     writeDot;
 
    Options()
    : all(true), engine(""), circuit(""), bits(0),
      csvFile("benchmark_results.csv"),
-     dotFile("bmd_multiply_4.dot"), writeDot(true) {}
+     dotFile("bmd_multiply_4.dot"), verilogFile(""), writeDot(true) {}
 };
+
+struct VerilogSpec
+{
+   unsigned bits;
+   char     op;
+   string   circuit;
+
+   VerilogSpec() : bits(0), op(0), circuit("") {}
+};
+
+static bool parseUInt(const string& str, unsigned& value);
 
 static BmdNode
 buildBmdUnsigned(BmdMgr& bm, bool isY, unsigned bits)
@@ -159,6 +172,93 @@ isBddCircuit(const string& circuit)
 {
    return circuit == "equality" || circuit == "add" ||
           circuit == "multiply";
+}
+
+static string
+readFileText(const string& fileName)
+{
+   ifstream ifile(fileName.c_str());
+   if (!ifile) return "";
+   stringstream ss;
+   ss << ifile.rdbuf();
+   return ss.str();
+}
+
+static string
+stripSpaces(const string& str)
+{
+   string out;
+   for (size_t i = 0; i < str.size(); ++i)
+      if (!isspace((unsigned char)str[i]))
+         out += str[i];
+   return out;
+}
+
+static bool
+parseInputWidth(const string& text, const string& name, unsigned& bits)
+{
+   string key = "input[";
+   size_t pos = 0;
+   while ((pos = text.find(key, pos)) != string::npos) {
+      size_t colon = text.find(':', pos + key.size());
+      size_t close = text.find(']', colon);
+      if (colon == string::npos || close == string::npos)
+         return false;
+
+      string highStr = text.substr(pos + key.size(), colon - (pos + key.size()));
+      string lowStr = text.substr(colon + 1, close - colon - 1);
+      unsigned high = 0, low = 0;
+      if (!parseUInt(highStr, high) || !parseUInt(lowStr, low))
+         return false;
+
+      size_t namePos = close + 1;
+      if (text.compare(namePos, name.size(), name) == 0) {
+         if (low != 0 || high == 0)
+            return false;
+         bits = high + 1;
+         return true;
+      }
+      ++pos;
+   }
+   return false;
+}
+
+static bool
+parseRestrictedVerilog(const string& fileName, VerilogSpec& spec)
+{
+   string text = stripSpaces(readFileText(fileName));
+   if (text.empty()) return false;
+
+   unsigned xBits = 0, yBits = 0;
+   if (!parseInputWidth(text, "x", xBits)) return false;
+   if (!parseInputWidth(text, "y", yBits)) return false;
+   if (xBits != yBits) return false;
+
+   size_t assignPos = text.find("assign");
+   size_t eqPos = text.find('=', assignPos);
+   size_t semiPos = text.find(';', eqPos);
+   if (assignPos == string::npos || eqPos == string::npos ||
+       semiPos == string::npos)
+      return false;
+
+   string expr = text.substr(eqPos + 1, semiPos - eqPos - 1);
+   if (expr == "x+y") {
+      spec.circuit = "add";
+      spec.op = '+';
+   }
+   else if (expr == "x-y") {
+      spec.circuit = "subtract";
+      spec.op = '-';
+   }
+   else if (expr == "x*y") {
+      spec.circuit = "multiply";
+      spec.op = '*';
+   }
+   else
+      return false;
+
+   spec.bits = xBits;
+   return true;
 }
 
 static BenchRow
@@ -332,13 +432,17 @@ printUsage(const char* argv0)
    cout << "  " << argv0 << " [--all]" << endl;
    cout << "  " << argv0
         << " --engine <bmd|bdd> --circuit <name> --bits <n> [--csv <file>] [--dot <file>]" << endl;
+   cout << "  " << argv0
+        << " --verilog <restricted-arithmetic.v> [--csv <file>] [--dot <file>]" << endl;
    cout << endl;
    cout << "BMD circuits: encode, add, subtract, multiply" << endl;
    cout << "BDD circuits: equality, add, multiply" << endl;
+   cout << "Restricted Verilog supports: assign z = x + y, x - y, or x * y" << endl;
    cout << endl;
    cout << "Examples:" << endl;
    cout << "  " << argv0 << " --engine bmd --circuit multiply --bits 16" << endl;
    cout << "  " << argv0 << " --engine bdd --circuit multiply --bits 8 --csv bdd_mul8.csv" << endl;
+   cout << "  " << argv0 << " --verilog examples/mul4.v" << endl;
 }
 
 static bool
@@ -369,6 +473,11 @@ parseArgs(int argc, char** argv, Options& opt)
       else if (arg == "--csv" && i + 1 < argc) {
          opt.csvFile = argv[++i];
       }
+      else if (arg == "--verilog" && i + 1 < argc) {
+         opt.verilogFile = argv[++i];
+         opt.engine = "bmd";
+         opt.all = false;
+      }
       else if (arg == "--dot" && i + 1 < argc) {
          opt.dotFile = argv[++i];
          opt.writeDot = true;
@@ -383,6 +492,17 @@ parseArgs(int argc, char** argv, Options& opt)
    }
 
    if (!opt.all) {
+      if (opt.verilogFile != "") {
+         VerilogSpec spec;
+         if (!parseRestrictedVerilog(opt.verilogFile, spec)) {
+            cerr << "Error: cannot parse restricted Verilog file: "
+                 << opt.verilogFile << endl;
+            return false;
+         }
+         opt.circuit = spec.circuit;
+         opt.bits = spec.bits;
+         return true;
+      }
       if (opt.engine != "bmd" && opt.engine != "bdd") {
          cerr << "Error: --engine must be bmd or bdd" << endl;
          return false;

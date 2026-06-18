@@ -88,6 +88,40 @@ Other useful options:
 ./testBdd --no-dot
 ```
 
+### Restricted Verilog Arithmetic Input
+
+The benchmark driver also supports a small restricted Verilog arithmetic input
+mode:
+
+```sh
+./testBdd --verilog examples/add4.v
+./testBdd --verilog examples/sub4.v
+./testBdd --verilog examples/mul4.v
+```
+
+This is **not** a full Verilog frontend.  It is intended as a lightweight
+word-level RTL arithmetic specification parser for simple modules of the form:
+
+```verilog
+module top(input [3:0] x, input [3:0] y, output [7:0] z);
+assign z = x * y;
+endmodule
+```
+
+Supported expressions are:
+
+```text
+assign z = x + y;
+assign z = x - y;
+assign z = x * y;
+```
+
+The parser extracts the input width and operation, then constructs the
+corresponding `*BMD` word-level function.  This mirrors the common research
+workflow where RTL arithmetic descriptions are interpreted or translated into a
+word-level representation before comparison.  Full Verilog parsing, synthesis,
+and AIG/BLIF conversion are left as future work.
+
 The benchmark also runs an exhaustive `*BMD` correctness test for 4-bit
 word-level encoding, addition, and multiplication.  This checks all input
 combinations:
@@ -151,6 +185,8 @@ package:
 - Exhaustive correctness checks for small arithmetic and Boolean cases.
 - CSV benchmark result export for post-processing.
 - DOT graph output for visualizing small `*BMD` examples.
+- Restricted Verilog arithmetic input for simple word-level `+`, `-`, and `*`
+  specifications.
 - A benchmark driver comparing RicBDD's original BDD engine with the new
   `*BMD` engine using node count, estimated memory, and runtime.
 - A written analysis of why `*BMD` is more suitable for word-level arithmetic
@@ -190,6 +226,9 @@ statistics and to make repeated benchmark construction stable.
 - `testBdd.cpp`  
   Benchmark driver for comparing `BDD` and `*BMD`.
   It also writes a small `bmd_multiply_4.dot` visualization example.
+
+- `examples/add4.v`, `examples/sub4.v`, `examples/mul4.v`  
+  Restricted Verilog arithmetic examples accepted by the CLI parser.
 
 - `BMD_REPORT.md`  
   Supplementary implementation notes and experiment summary.
@@ -382,6 +421,9 @@ comparison between engines.
   robust PR-quality implementation.
 - DOT output is intended for small examples and demonstrations.  Large
   arithmetic graphs may still be difficult to inspect visually.
+- Restricted Verilog input supports only simple word-level arithmetic
+  assignments.  It is not a replacement for Yosys, ABC, or a complete Verilog
+  parser.
 
 ## Experimental Results
 
@@ -487,6 +529,7 @@ circuits such as RTL adders and multipliers.
 - Add arbitrary precision integer support for edge weights.
 - Add unit tests instead of relying only on the benchmark driver.
 - Add BLIF/AIG/ISCAS benchmark parsing.
+- Integrate with Yosys/ABC for full Verilog-to-netlist workflows.
 - Add hierarchical arithmetic circuit verification, following the ACV-style
   methodology described in prior work.
 - Package the implementation as a cleaner pull request to the upstream RicBDD
