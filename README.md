@@ -52,6 +52,7 @@ The benchmark prints:
 - estimated memory usage
 - runtime
 - sample correctness check
+- a small `*BMD` DOT graph example: `bmd_multiply_4.dot`
 
 The benchmark also runs an exhaustive `*BMD` correctness test for 4-bit
 word-level encoding, addition, and multiplication.  This checks all input
@@ -80,6 +81,18 @@ rm -f .depend.mak
 Generated object files, executable binaries, dependency files, crash dumps, and
 local diagram files are ignored by `.gitignore` and should not be pushed.
 
+### Optional DOT Visualization
+
+`./testBdd` writes a small `*BMD` DOT graph for 4-bit multiplication:
+
+```sh
+./testBdd
+dot -Tpng bmd_multiply_4.dot -o bmd_multiply_4.png
+```
+
+The DOT graph labels the root weight and the `lo` / `hi` moment edges.  The
+generated `.dot` and `.png` files are ignored by `.gitignore`.
+
 ## Key Research Contributions
 
 This project contributes the following items on top of the original RicBDD
@@ -93,6 +106,7 @@ package:
 - GCD-based edge-weight normalization for canonical `*BMD` construction.
 - Arithmetic operations: addition, subtraction, and multiplication.
 - Boolean operations represented arithmetically: NOT, AND, OR, and XOR.
+- DOT graph output for visualizing small `*BMD` examples.
 - A benchmark driver comparing RicBDD's original BDD engine with the new
   `*BMD` engine using node count, estimated memory, and runtime.
 - A written analysis of why `*BMD` is more suitable for word-level arithmetic
@@ -131,6 +145,7 @@ statistics and to make repeated benchmark construction stable.
 
 - `testBdd.cpp`  
   Benchmark driver for comparing `BDD` and `*BMD`.
+  It also writes a small `bmd_multiply_4.dot` visualization example.
 
 - `BMD_REPORT.md`  
   Supplementary implementation notes and experiment summary.
@@ -321,6 +336,8 @@ comparison between engines.
 - Current numeric weights use `long long`.  This is sufficient for the included
   benchmarks but should be replaced by arbitrary precision integers for a more
   robust PR-quality implementation.
+- DOT output is intended for small examples and demonstrations.  Large
+  arithmetic graphs may still be difficult to inspect visually.
 
 ## Experimental Results
 
@@ -387,6 +404,7 @@ Additional correctness test:
 
 ```text
 *BMD exhaustive 4-bit encode/add/multiply: pass
+*BMD DOT example bmd_multiply_4.dot: written
 ```
 
 Observations:
@@ -408,7 +426,6 @@ circuits such as RTL adders and multipliers.
 ## Limitations and Future Work
 
 - Add arbitrary precision integer support for edge weights.
-- Add DOT dumping for `*BMD` graphs.
 - Add unit tests instead of relying only on the benchmark driver.
 - Add BLIF/AIG/ISCAS benchmark parsing.
 - Add hierarchical arithmetic circuit verification, following the ACV-style

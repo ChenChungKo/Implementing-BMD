@@ -199,6 +199,16 @@ exhaustiveBmd(unsigned bits)
    return true;
 }
 
+static bool
+writeBmdDotExample()
+{
+   BmdMgr bm(9, 20011, 80021);
+   BmdNode x = buildBmdUnsigned(bm, false, 4);
+   BmdNode y = buildBmdUnsigned(bm, true, 4);
+   BmdNode product = x * y;
+   return bm.drawBmd("mul4", product, "bmd_multiply_4.dot");
+}
+
 static void
 printRow(const BenchRow& r)
 {
@@ -247,6 +257,8 @@ main()
    cout << endl;
    cout << "*BMD exhaustive 4-bit encode/add/multiply: "
         << (exhaustiveBmd(4)? "pass": "fail") << endl;
+   cout << "*BMD DOT example bmd_multiply_4.dot: "
+        << (writeBmdDotExample()? "written": "failed") << endl;
 
    return 0;
 }

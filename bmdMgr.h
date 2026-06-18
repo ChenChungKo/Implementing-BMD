@@ -80,6 +80,8 @@ public:
 
    long long evalCube(const BmdNode& node, const string& pattern) const {
       return node.evalCube(pattern); }
+   bool drawBmd(const string& name, const BmdNode& node,
+                const string& dotFile) const;
    size_t getNumNodes() const { return _uniqueTable.size(); }
    size_t getMemUsage() const { return _uniqueTable.size() * sizeof(BmdNodeInt); }
 

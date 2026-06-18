@@ -9,6 +9,7 @@
 
 #include <map>
 #include <iostream>
+#include <fstream>
 
 using namespace std;
 
@@ -49,6 +50,7 @@ public:
    long long evalCube(const string& pattern) const;
    size_t countNode() const;
    string getLabel() const;
+   void drawBmd(const string& name, ofstream& ofile) const;
 
    friend ostream& operator << (ostream& os, const BmdNode& n);
 
@@ -64,6 +66,7 @@ private:
    long long evalCubeRecur(const string& pattern) const;
    void countNodeRecur(map<const BmdNodeInt*, bool>& visited) const;
    void print(ostream&, size_t, map<const BmdNodeInt*, bool>&) const;
+   void drawBmdRecur(ofstream&, map<const BmdNodeInt*, bool>&) const;
 
    friend class BmdMgr;
    friend class BmdNodeInt;

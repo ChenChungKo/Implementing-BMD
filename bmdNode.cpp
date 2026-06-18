@@ -201,6 +201,48 @@ BmdNode::print(ostream& os, size_t indent,
    _node->getHi().print(os, indent + 4, visited);
 }
 
+void
+BmdNode::drawBmd(const string& name, ofstream& ofile) const
+{
+   map<const BmdNodeInt*, bool> visited;
+
+   ofile << "digraph {" << endl;
+   ofile << "   rankdir = TB;" << endl;
+   ofile << "   node [shape = ellipse];" << endl;
+   ofile << "   \"" << name << "\" [shape = plaintext];" << endl;
+   ofile << "   \"T\" [shape = box, label = \"T\"];" << endl;
+   ofile << "   \"" << name << "\" -> \"" << getLabel()
+         << "\" [label = \"w=" << _weight << "\"];" << endl;
+
+   drawBmdRecur(ofile, visited);
+
+   ofile << "}" << endl;
+}
+
+void
+BmdNode::drawBmdRecur(ofstream& ofile,
+                      map<const BmdNodeInt*, bool>& visited) const
+{
+   if (isTerminal()) return;
+   if (visited[_node]) return;
+   visited[_node] = true;
+
+   string thisLabel = getLabel();
+   BmdNode lo = _node->getLo();
+   BmdNode hi = _node->getHi();
+
+   ofile << "   \"" << thisLabel << "\" [label = \"x"
+         << getLevel() << "\\nuid=" << _node->getUid() << "\"];" << endl;
+
+   ofile << "   \"" << thisLabel << "\" -> \"" << lo.getLabel()
+         << "\" [style = dashed, label = \"lo w=" << lo._weight << "\"];" << endl;
+   ofile << "   \"" << thisLabel << "\" -> \"" << hi.getLabel()
+         << "\" [style = solid, label = \"hi w=" << hi._weight << "\"];" << endl;
+
+   lo.drawBmdRecur(ofile, visited);
+   hi.drawBmdRecur(ofile, visited);
+}
+
 BmdNodeInt::BmdNodeInt()
 : _level(0), _lo(), _hi(), _uid(0)
 {

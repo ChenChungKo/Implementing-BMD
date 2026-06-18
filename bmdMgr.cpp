@@ -6,6 +6,7 @@
 
 #include <cstdlib>
 #include <cassert>
+#include <fstream>
 #include "bmdNode.h"
 #include "bmdMgr.h"
 
@@ -214,6 +215,18 @@ BmdNode
 BmdMgr::subtractApply(const BmdNode& f, const BmdNode& g)
 {
    return plusApply(f, applyWeight(-1, g));
+}
+
+bool
+BmdMgr::drawBmd(const string& name, const BmdNode& node,
+                const string& dotFile) const
+{
+   ofstream ofile(dotFile.c_str());
+   if (!ofile)
+      return false;
+
+   node.drawBmd(name, ofile);
+   return true;
 }
 
 BmdNode
