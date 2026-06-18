@@ -18,10 +18,8 @@ word-level designs, such as adders and multipliers.
 
 ## Group Members
 
-Please fill in before submission:
-
-- TODO: Name, e-mail, and backup contact information
-- TODO: Name, e-mail, and backup contact information, if this is a two-person team
+工海所 碩一 陳眾科 R14525042
+Email: r14525042@ntu.edu.tw
 
 ## Build, Run, and Test
 
@@ -54,6 +52,23 @@ The benchmark prints:
 - estimated memory usage
 - runtime
 - sample correctness check
+
+The benchmark also runs an exhaustive `*BMD` correctness test for 4-bit
+word-level encoding, addition, and multiplication.  This checks all input
+combinations:
+
+```text
+X = 0..15
+Y = 0..15
+```
+
+and verifies:
+
+```text
+encode(X)    = X
+add(X, Y)    = X + Y
+multiply(X,Y)= X * Y
+```
 
 ### Clean Generated Files
 
@@ -311,17 +326,67 @@ comparison between engines.
 
 The latest benchmark run passed all sample correctness checks.
 
-Representative results:
+The benchmark contains two categories:
+
+- `*BMD` word-level arithmetic benchmarks:
+  - `encode`: unsigned integer word representation
+  - `add`: word-level addition `X + Y`
+  - `multiply`: word-level multiplication `X * Y`
+- RicBDD BDD bit-level benchmarks:
+  - `equality`: Boolean comparator `X == Y`
+  - `add`: ripple-carry adder represented by output bits
+  - `multiply`: array multiplier represented by output bits
+
+The `encode` benchmark is included only for `*BMD` because it measures compact
+word-level integer representation.  It is not a Boolean equality function and
+should not be interpreted as corresponding to BDD `equality`.
+
+Representative `*BMD` word-level results:
 
 ```text
 Engine  Circuit       Bits       Nodes   Memory(est)     Seconds  Check
 ------------------------------------------------------------------------
-*BMD    encode          32          33          1584    0.000113  pass
-*BMD    add             32          65          3120    0.000189  pass
-*BMD    multiply        16          63          3024    0.000114  pass
-BDD     equality        16          95          2280    0.000050  pass
-BDD     add             16         171          4104    0.000120  pass
-BDD     multiply         8       55996       1343904    0.102797  pass
+*BMD    encode           4           5           240    0.000026  pass
+*BMD    add              4           9           432    0.000011  pass
+*BMD    multiply         4          15           720    0.000009  pass
+*BMD    encode           8           9           432    0.000011  pass
+*BMD    add              8          17           816    0.000021  pass
+*BMD    multiply         8          31          1488    0.000035  pass
+*BMD    encode          12          13           624    0.000016  pass
+*BMD    add             12          25          1200    0.000058  pass
+*BMD    multiply        12          47          2256    0.000085  pass
+*BMD    encode          16          17           816    0.000034  pass
+*BMD    add             16          33          1584    0.000069  pass
+*BMD    multiply        16          63          3024    0.000046  pass
+*BMD    encode          24          25          1200    0.000091  pass
+*BMD    add             24          49          2352    0.000176  pass
+*BMD    encode          32          33          1584    0.000052  pass
+*BMD    add             32          65          3120    0.000265  pass
+```
+
+Representative RicBDD BDD bit-level results:
+
+```text
+Engine  Circuit       Bits       Nodes   Memory(est)     Seconds  Check
+------------------------------------------------------------------------
+BDD     equality         4          23           552    0.000034  pass
+BDD     add              4          39           936    0.000090  pass
+BDD     equality         8          47          1128    0.000069  pass
+BDD     add              8          83          1992    0.000160  pass
+BDD     equality        12          71          1704    0.000079  pass
+BDD     add             12         127          3048    0.000152  pass
+BDD     equality        16          95          2280    0.000080  pass
+BDD     add             16         171          4104    0.000403  pass
+BDD     multiply         2          17           408    0.000044  pass
+BDD     multiply         4         405          9720    0.000763  pass
+BDD     multiply         6        5039        120936    0.008034  pass
+BDD     multiply         8       55996       1343904    0.076185  pass
+```
+
+Additional correctness test:
+
+```text
+*BMD exhaustive 4-bit encode/add/multiply: pass
 ```
 
 Observations:
@@ -333,6 +398,8 @@ Observations:
   variable ordering.
 - Bit-level BDD multiplication grows much faster, reaching 55,996 nodes for
   only 8-bit multiplication.
+- Runtime values may vary between runs, especially on a Raspberry Pi.  Node
+  count and estimated memory are the primary comparison metrics.
 
 These results are consistent with the motivation of `*BMD`: BDDs are useful for
 Boolean control logic, while `*BMDs` are more suitable for word-level arithmetic

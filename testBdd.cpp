@@ -175,6 +175,30 @@ benchBdd(const string& circuit, unsigned bits)
    return row;
 }
 
+static bool
+exhaustiveBmd(unsigned bits)
+{
+   BmdMgr bm(2 * bits + 1, 20011, 80021);
+   BmdNode x = buildBmdUnsigned(bm, false, bits);
+   BmdNode y = buildBmdUnsigned(bm, true, bits);
+   BmdNode sum = x + y;
+   BmdNode product = x * y;
+
+   unsigned long long limit = 1ULL << bits;
+   for (unsigned long long xv = 0; xv < limit; ++xv) {
+      for (unsigned long long yv = 0; yv < limit; ++yv) {
+         string pattern = makePattern(bits, xv, yv);
+         if (bm.evalCube(x, pattern) != (long long)xv)
+            return false;
+         if (bm.evalCube(sum, pattern) != (long long)(xv + yv))
+            return false;
+         if (bm.evalCube(product, pattern) != (long long)(xv * yv))
+            return false;
+      }
+   }
+   return true;
+}
+
 static void
 printRow(const BenchRow& r)
 {
@@ -219,6 +243,10 @@ main()
    unsigned bddMulBits[] = { 2, 4, 6, 8 };
    for (unsigned i = 0; i < sizeof(bddMulBits) / sizeof(unsigned); ++i)
       printRow(benchBdd("multiply", bddMulBits[i]));
+
+   cout << endl;
+   cout << "*BMD exhaustive 4-bit encode/add/multiply: "
+        << (exhaustiveBmd(4)? "pass": "fail") << endl;
 
    return 0;
 }
