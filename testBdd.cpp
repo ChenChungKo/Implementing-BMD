@@ -11,6 +11,7 @@
 #include <ctime>
 #include <cstdlib>
 #include <fstream>
+#include <sstream>
 #include "bddNode.h"
 #include "bddMgr.h"
 #include "bmdNode.h"
@@ -27,6 +28,22 @@ struct BenchRow
    size_t    memory;
    double    seconds;
    string    check;
+};
+
+struct Options
+{
+   bool     all;
+   string   engine;
+   string   circuit;
+   unsigned bits;
+   string   csvFile;
+   string   dotFile;
+   bool     writeDot;
+
+   Options()
+   : all(true), engine(""), circuit(""), bits(0),
+     csvFile("benchmark_results.csv"),
+     dotFile("bmd_multiply_4.dot"), writeDot(true) {}
 };
 
 static BmdNode
@@ -128,6 +145,20 @@ benchBmd(const string& circuit, unsigned bits)
    BenchRow row = { "*BMD", circuit, bits, f.countNode(),
                     f.countNode() * sizeof(BmdNodeInt), sec, check };
    return row;
+}
+
+static bool
+isBmdCircuit(const string& circuit)
+{
+   return circuit == "encode" || circuit == "add" ||
+          circuit == "subtract" || circuit == "multiply";
+}
+
+static bool
+isBddCircuit(const string& circuit)
+{
+   return circuit == "equality" || circuit == "add" ||
+          circuit == "multiply";
 }
 
 static BenchRow
@@ -249,13 +280,13 @@ exhaustiveBmdBoolean()
 }
 
 static bool
-writeBmdDotExample()
+writeBmdDotExample(const string& fileName)
 {
    BmdMgr bm(9, 20011, 80021);
    BmdNode x = buildBmdUnsigned(bm, false, 4);
    BmdNode y = buildBmdUnsigned(bm, true, 4);
    BmdNode product = x * y;
-   return bm.drawBmd("mul4", product, "bmd_multiply_4.dot");
+   return bm.drawBmd("mul4", product, fileName);
 }
 
 static void
@@ -282,9 +313,106 @@ findNodes(const vector<BenchRow>& rows, const string& engine,
    return 0;
 }
 
-int
-main()
+static bool
+parseUInt(const string& str, unsigned& value)
 {
+   stringstream ss(str);
+   unsigned v;
+   char extra;
+   if (!(ss >> v)) return false;
+   if (ss >> extra) return false;
+   value = v;
+   return true;
+}
+
+static void
+printUsage(const char* argv0)
+{
+   cout << "Usage:" << endl;
+   cout << "  " << argv0 << " [--all]" << endl;
+   cout << "  " << argv0
+        << " --engine <bmd|bdd> --circuit <name> --bits <n> [--csv <file>] [--dot <file>]" << endl;
+   cout << endl;
+   cout << "BMD circuits: encode, add, subtract, multiply" << endl;
+   cout << "BDD circuits: equality, add, multiply" << endl;
+   cout << endl;
+   cout << "Examples:" << endl;
+   cout << "  " << argv0 << " --engine bmd --circuit multiply --bits 16" << endl;
+   cout << "  " << argv0 << " --engine bdd --circuit multiply --bits 8 --csv bdd_mul8.csv" << endl;
+}
+
+static bool
+parseArgs(int argc, char** argv, Options& opt)
+{
+   for (int i = 1; i < argc; ++i) {
+      string arg = argv[i];
+      if (arg == "--help" || arg == "-h") {
+         printUsage(argv[0]);
+         exit(0);
+      }
+      else if (arg == "--all") {
+         opt.all = true;
+      }
+      else if (arg == "--engine" && i + 1 < argc) {
+         opt.engine = argv[++i];
+         opt.all = false;
+      }
+      else if (arg == "--circuit" && i + 1 < argc) {
+         opt.circuit = argv[++i];
+         opt.all = false;
+      }
+      else if (arg == "--bits" && i + 1 < argc) {
+         if (!parseUInt(argv[++i], opt.bits))
+            return false;
+         opt.all = false;
+      }
+      else if (arg == "--csv" && i + 1 < argc) {
+         opt.csvFile = argv[++i];
+      }
+      else if (arg == "--dot" && i + 1 < argc) {
+         opt.dotFile = argv[++i];
+         opt.writeDot = true;
+      }
+      else if (arg == "--no-dot") {
+         opt.writeDot = false;
+      }
+      else {
+         cerr << "Unknown or incomplete option: " << arg << endl;
+         return false;
+      }
+   }
+
+   if (!opt.all) {
+      if (opt.engine != "bmd" && opt.engine != "bdd") {
+         cerr << "Error: --engine must be bmd or bdd" << endl;
+         return false;
+      }
+      if (opt.bits == 0) {
+         cerr << "Error: --bits must be a positive integer" << endl;
+         return false;
+      }
+      if (opt.engine == "bmd" && !isBmdCircuit(opt.circuit)) {
+         cerr << "Error: unsupported BMD circuit: " << opt.circuit << endl;
+         return false;
+      }
+      if (opt.engine == "bdd" && !isBddCircuit(opt.circuit)) {
+         cerr << "Error: unsupported BDD circuit: " << opt.circuit << endl;
+         return false;
+      }
+   }
+
+   return true;
+}
+
+int
+main(int argc, char** argv)
+{
+   Options opt;
+   if (!parseArgs(argc, argv, opt)) {
+      printUsage(argv[0]);
+      return 1;
+   }
+
    vector<BenchRow> rows;
 
    cout << "BMDImpt benchmark on RicBDD infrastructure" << endl;
@@ -299,44 +427,57 @@ main()
         << "  Check" << endl;
    cout << string(72, '-') << endl;
 
-   unsigned bmdBits[] = { 4, 8, 12, 16, 24, 32 };
-   for (unsigned i = 0; i < sizeof(bmdBits) / sizeof(unsigned); ++i) {
-      rows.push_back(benchBmd("encode", bmdBits[i]));
-      printRow(rows.back());
-      rows.push_back(benchBmd("add", bmdBits[i]));
-      printRow(rows.back());
-      rows.push_back(benchBmd("subtract", bmdBits[i]));
-      printRow(rows.back());
-      if (bmdBits[i] <= 16) {
-         rows.push_back(benchBmd("multiply", bmdBits[i]));
+   if (opt.all) {
+      unsigned bmdBits[] = { 4, 8, 12, 16, 24, 32 };
+      for (unsigned i = 0; i < sizeof(bmdBits) / sizeof(unsigned); ++i) {
+         rows.push_back(benchBmd("encode", bmdBits[i]));
+         printRow(rows.back());
+         rows.push_back(benchBmd("add", bmdBits[i]));
+         printRow(rows.back());
+         rows.push_back(benchBmd("subtract", bmdBits[i]));
+         printRow(rows.back());
+         if (bmdBits[i] <= 16) {
+            rows.push_back(benchBmd("multiply", bmdBits[i]));
+            printRow(rows.back());
+         }
+      }
+
+      unsigned bddAddBits[] = { 4, 8, 12, 16 };
+      for (unsigned i = 0; i < sizeof(bddAddBits) / sizeof(unsigned); ++i) {
+         rows.push_back(benchBdd("equality", bddAddBits[i]));
+         printRow(rows.back());
+         rows.push_back(benchBdd("add", bddAddBits[i]));
+         printRow(rows.back());
+      }
+
+      unsigned bddMulBits[] = { 2, 4, 6, 8 };
+      for (unsigned i = 0; i < sizeof(bddMulBits) / sizeof(unsigned); ++i) {
+         rows.push_back(benchBdd("multiply", bddMulBits[i]));
          printRow(rows.back());
       }
    }
-
-   unsigned bddAddBits[] = { 4, 8, 12, 16 };
-   for (unsigned i = 0; i < sizeof(bddAddBits) / sizeof(unsigned); ++i) {
-      rows.push_back(benchBdd("equality", bddAddBits[i]));
-      printRow(rows.back());
-      rows.push_back(benchBdd("add", bddAddBits[i]));
-      printRow(rows.back());
-   }
-
-   unsigned bddMulBits[] = { 2, 4, 6, 8 };
-   for (unsigned i = 0; i < sizeof(bddMulBits) / sizeof(unsigned); ++i) {
-      rows.push_back(benchBdd("multiply", bddMulBits[i]));
+   else {
+      if (opt.engine == "bmd")
+         rows.push_back(benchBmd(opt.circuit, opt.bits));
+      else
+         rows.push_back(benchBdd(opt.circuit, opt.bits));
       printRow(rows.back());
    }
 
    cout << endl;
-   cout << "*BMD exhaustive 4-bit encode/add/multiply: "
-        << (exhaustiveBmd(4)? "pass": "fail") << endl;
-   cout << "*BMD Boolean ops exhaustive NOT/AND/OR/XOR: "
-        << (exhaustiveBmdBoolean()? "pass": "fail") << endl;
-   cout << "*BMD DOT example bmd_multiply_4.dot: "
-        << (writeBmdDotExample()? "written": "failed") << endl;
+   if (opt.all || opt.engine == "bmd") {
+      cout << "*BMD exhaustive 4-bit encode/add/multiply: "
+           << (exhaustiveBmd(4)? "pass": "fail") << endl;
+      cout << "*BMD Boolean ops exhaustive NOT/AND/OR/XOR: "
+           << (exhaustiveBmdBoolean()? "pass": "fail") << endl;
+   }
+   if (opt.writeDot) {
+      cout << "*BMD DOT example " << opt.dotFile << ": "
+           << (writeBmdDotExample(opt.dotFile)? "written": "failed") << endl;
+   }
 
-   writeCsv(rows, "benchmark_results.csv");
-   cout << "Benchmark CSV benchmark_results.csv: written" << endl;
+   writeCsv(rows, opt.csvFile);
+   cout << "Benchmark CSV " << opt.csvFile << ": written" << endl;
 
    size_t bmdMul8 = findNodes(rows, "*BMD", "multiply", 8);
    size_t bddMul8 = findNodes(rows, "BDD", "multiply", 8);

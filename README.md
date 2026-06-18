@@ -55,6 +55,39 @@ The benchmark prints:
 - a small `*BMD` DOT graph example: `bmd_multiply_4.dot`
 - a CSV result file: `benchmark_results.csv`
 
+### Command-Line Options
+
+By default, `./testBdd` runs the full benchmark suite.  You can also run a
+single benchmark with CLI options:
+
+```sh
+./testBdd --engine bmd --circuit multiply --bits 16
+./testBdd --engine bdd --circuit multiply --bits 8
+./testBdd --engine bmd --circuit subtract --bits 32 --csv bmd_sub32.csv
+```
+
+Supported `*BMD` circuits:
+
+```text
+encode, add, subtract, multiply
+```
+
+Supported BDD circuits:
+
+```text
+equality, add, multiply
+```
+
+Other useful options:
+
+```sh
+./testBdd --help
+./testBdd --all
+./testBdd --csv benchmark_results.csv
+./testBdd --dot bmd_multiply_4.dot
+./testBdd --no-dot
+```
+
 The benchmark also runs an exhaustive `*BMD` correctness test for 4-bit
 word-level encoding, addition, and multiplication.  This checks all input
 combinations:
