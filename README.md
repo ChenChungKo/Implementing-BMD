@@ -552,4 +552,18 @@ Demo video: https://youtu.be/ibkdTyuhnbs
 
 ## Optional Course Comments
 
-TODO: Add optional comments about this course, if desired.
+I sincerely appreciate the instructor for introducing and providing Cursor as a
+development tool in this course. Through this final project, Cursor helped me
+understand unfamiliar research topics, navigate the RicBDD codebase, implement
+the `*BMD` engine, and iteratively improve the experiments and documentation.
+
+I also saw recent news reports about SpaceX's plan to acquire Cursor. Regardless
+of the final outcome of the transaction, it is impressive to see how influential
+Cursor has become as a developer tool. Knowing that the instructor's son
+contributed to such an outstanding product makes me feel great respect for the
+effort and achievement behind it.
+
+This course not only helped me learn about decision diagrams and arithmetic
+circuit verification, but also gave me firsthand experience with how AI-assisted
+software development can support research-oriented implementation within a
+limited amount of time.
