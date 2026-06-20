@@ -539,15 +539,6 @@ circuits such as RTL adders and multipliers.
 
 Demo video: https://youtu.be/ibkdTyuhnbs
 
-Recommended demo content:
-
-1. Show repository structure.
-2. Run `make clean && make depend && make`.
-3. Run `./testBdd`.
-4. Explain the benchmark output.
-5. Briefly explain why `*BMD` multiplication has far fewer nodes than BDD
-   bit-level multiplication.
-
 ## References
 
 1. R. E. Bryant and Y.-A. Chen, "Verification of Arithmetic Circuits with
