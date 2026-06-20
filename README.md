@@ -537,7 +537,7 @@ circuits such as RTL adders and multipliers.
 
 ## Demo Video
 
-TODO: Add demo video link before final submission.
+Demo video: https://youtu.be/ibkdTyuhnbs
 
 Recommended demo content:
 
